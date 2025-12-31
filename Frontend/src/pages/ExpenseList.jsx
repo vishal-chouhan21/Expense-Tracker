@@ -288,6 +288,7 @@ const ExpenseList = () => {
               <option value="Health">Health</option>
               <option value="Daily">Daily</option>
               <option value="Entertainment">Entertainment</option>
+              <option value="Vegitable">Vegitable</option>
               <option value="Grocery">Grocery</option>
               <option value="Study">Study</option>
               <option value="Personal">Personal</option>
