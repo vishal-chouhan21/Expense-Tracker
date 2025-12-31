@@ -286,6 +286,7 @@ const ExpenseList = () => {
               <option value="Travel">Travel</option>
               <option value="Shopping">Shopping</option>
               <option value="Health">Health</option>
+              <option value="Daily">Daily</option>
               <option value="Entertainment">Entertainment</option>
               <option value="Grocery">Grocery</option>
               <option value="Study">Study</option>
