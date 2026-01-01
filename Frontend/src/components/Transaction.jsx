@@ -28,8 +28,8 @@ const Transactions = () => {
 
   // ================= DELETE =================
   const handleDelete = async (id) => {
-    const confirm = window.confirm("Delete this transaction?");
-    if (!confirm) return;
+    const confirmDelete = window.confirm("Delete this transaction?");
+    if (!confirmDelete) return;
 
     try {
       await deleteExpense(id);
@@ -60,16 +60,21 @@ const Transactions = () => {
     }
   };
 
-  // ================= SORT + GROUP =================
+  // ================= YEAR + DATE GROUP =================
   const groupedTransactions = useMemo(() => {
     const sorted = [...transactions].sort(
       (a, b) => new Date(b.date) - new Date(a.date)
     );
 
     return sorted.reduce((acc, tx) => {
-      const dateKey = new Date(tx.date).toDateString();
-      if (!acc[dateKey]) acc[dateKey] = [];
-      acc[dateKey].push(tx);
+      const dateObj = new Date(tx.date);
+      const year = dateObj.getFullYear();
+      const dateKey = dateObj.toDateString();
+
+      if (!acc[year]) acc[year] = {};
+      if (!acc[year][dateKey]) acc[year][dateKey] = [];
+
+      acc[year][dateKey].push(tx);
       return acc;
     }, {});
   }, [transactions]);
@@ -102,50 +107,72 @@ const Transactions = () => {
                 </td>
               </tr>
             ) : (
-              Object.entries(groupedTransactions).map(([date, items]) => (
-                <Fragment key={date}>
-                  <tr className="bg-[#141414]">
-                    <td
-                      colSpan="5"
-                      className="px-4 py-2 text-xs font-semibold text-gray-400"
-                    >
-                      {date}
-                    </td>
-                  </tr>
-
-                  {items.map((t) => (
-                    <tr
-                      key={t._id}
-                      className="border-t border-[#2a2a2a] hover:bg-[#222]"
-                    >
-                      <td className="px-4 py-3">
-                        {new Date(t.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">{t.category}</td>
-                      <td className="px-4 py-3 text-orange-400 font-medium">
-                        ₹{t.amount}
-                      </td>
-                      <td className="px-4 py-3 text-gray-400">
-                        {t.title || "-"}
-                      </td>
-                      <td className="px-4 py-3 flex justify-end gap-3">
-                        <button
-                          onClick={() => handleEdit(t)}
-                          className="text-blue-400 hover:text-blue-500"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(t._id)}
-                          className="text-red-400 hover:text-red-500"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+              // ===== Sort years descending (current year first) =====
+              Object.entries(groupedTransactions)
+                .sort(([yearA], [yearB]) => yearB - yearA)
+                .map(([year, dates]) => (
+                  <Fragment key={year}>
+                    {/* ===== YEAR HEADER ===== */}
+                    <tr className="bg-[#0f0f0f]">
+                      <td
+                        colSpan="5"
+                        className="px-4 py-3 text-sm font-bold text-orange-400"
+                      >
+                        {year}
                       </td>
                     </tr>
-                  ))}
-                </Fragment>
-              ))
+
+                    {/* ===== Sort dates descending within the year ===== */}
+                    {Object.entries(dates)
+                      .sort(([dateA], [dateB]) => new Date(dateB) - new Date(dateA))
+                      .map(([date, items]) => (
+                        <Fragment key={date}>
+                          {/* ===== DATE HEADER ===== */}
+                          <tr className="bg-[#141414]">
+                            <td
+                              colSpan="5"
+                              className="px-6 py-2 text-xs font-semibold text-gray-400"
+                            >
+                              {date}
+                            </td>
+                          </tr>
+
+                          {/* ===== TRANSACTIONS ===== */}
+                          {items.map((t) => (
+                            <tr
+                              key={t._id}
+                              className="border-t border-[#2a2a2a] hover:bg-[#222]"
+                            >
+                              <td className="px-4 py-3">
+                                {new Date(t.date).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-3">{t.category}</td>
+                              <td className="px-4 py-3 text-orange-400 font-medium">
+                                ₹{t.amount}
+                              </td>
+                              <td className="px-4 py-3 text-gray-400">
+                                {t.title || "-"}
+                              </td>
+                              <td className="px-4 py-3 flex justify-end gap-3">
+                                <button
+                                  onClick={() => handleEdit(t)}
+                                  className="text-blue-400 hover:text-blue-500"
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(t._id)}
+                                  className="text-red-400 hover:text-red-500"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      ))}
+                  </Fragment>
+                ))
             )}
           </tbody>
         </table>
