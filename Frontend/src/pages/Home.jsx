@@ -177,10 +177,18 @@ const Home = () => {
             <input name="amount" type="number" placeholder="Amount" onChange={handleChange} className="w-full p-2 bg-[#141414]" />
             <select name="category" onChange={handleChange} className="w-full p-2 bg-[#141414]">
               <option value="">Category</option>
-              <option>Food</option>
-              <option>Rent</option>
-              <option>Travel</option>
-              <option>Shopping</option>
+              <option value="Daily">Daily</option>
+              <option value="Food">Food</option>
+              <option value="Personal">Personal</option>
+              <option value="Rent">Rent</option>
+              <option value="Travel">Travel</option>
+              <option value="Vegitable">Vegitable</option>
+              <option value="Grocery">Grocery</option>
+              <option value="Dairy">Dairy</option>
+              <option value="Health">Health</option>
+              <option value="Study">Study</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Shopping">Shopping</option>
             </select>
             <input name="date" type="date" onChange={handleChange} className="w-full p-2 bg-[#141414]" />
             <textarea name="note" placeholder="Note" onChange={handleChange} className="w-full p-2 bg-[#141414]" />

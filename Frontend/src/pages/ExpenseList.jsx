@@ -63,9 +63,15 @@ const ExpenseList = () => {
   };
 
   const handleEditSave = async (id) => {
-    const res = await editExpense(id, editData);
-    setExpenses((prev) => prev.map((e) => (e._id === id ? res.expense : e)));
-    setEditOpen(false);
+    try {
+      const res = await editExpense(id, editData);
+      setExpenses((prev) =>
+        prev.map((e) => (e._id === id ? res.expense : e))
+      );
+      setEditOpen(false);
+    } catch (err) {
+      alert("Failed to save changes");
+    }
   };
 
   // ================= GROUPING (MONTH → DAY) =================
@@ -131,7 +137,7 @@ const ExpenseList = () => {
           <h2 className="text-xl font-bold text-orange-400">{selectedYear}</h2>
         </div>
         <table className="w-full text-sm text-center">
-          <thead className="sticky top-0 bg-[#141414] text-gray-400 z-50">
+          <thead className="sticky top-0 bg-[#141414] text-gray-400">
             <tr>
               <th className="px-4 py-3">#</th>
               <th className="">Amount</th>
@@ -197,9 +203,7 @@ const ExpenseList = () => {
                                         key={expense._id}
                                         className="border-t border-[#1f1f1f] hover:bg-[#141414]"
                                       >
-                                        <td className="px-4 py-3">
-                                          {index + 1}
-                                        </td>
+                                        <td className="px-4 py-3">{index + 1}</td>
                                         <td className="px-4 py-3 text-orange-400">
                                           ₹ {expense.amount}
                                         </td>
@@ -208,9 +212,7 @@ const ExpenseList = () => {
                                             {expense.category}
                                           </span>
                                         </td>
-                                        <td className="px-4 py-3">
-                                          {expense.title}
-                                        </td>
+                                        <td className="px-4 py-3">{expense.title}</td>
                                         <td className="px-4 py-3">
                                           <button
                                             onClick={() => openEdit(expense)}
@@ -221,12 +223,8 @@ const ExpenseList = () => {
                                         </td>
                                         <td className="px-4 py-3">
                                           <button
-                                            onClick={() =>
-                                              handleDelete(expense._id)
-                                            }
-                                            disabled={
-                                              deletingId === expense._id
-                                            }
+                                            onClick={() => handleDelete(expense._id)}
+                                            disabled={deletingId === expense._id}
                                             className="text-red-400 text-xs inline-flex gap-1 items-center"
                                           >
                                             <FiTrash2 size={14} /> delete
@@ -291,40 +289,69 @@ const ExpenseList = () => {
           <div className="bg-[#141414] w-full max-w-md rounded-lg p-5 border border-[#1f1f1f]">
             <div className="flex justify-between mb-4">
               <h2 className="text-lg font-semibold">Edit Expense</h2>
-              <button onClick={() => setEditOpen(false)}>
-                <FiX />
+              <button
+                onClick={() => setEditOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <FiX size={20} />
               </button>
             </div>
 
-            <input
-              value={editData.title}
-              onChange={(e) =>
-                setEditData({
-                  ...editData,
-                  title: e.target.value,
-                })
-              }
-              className="w-full mb-3 p-2 bg-[#0f0f0f] border border-[#1f1f1f] rounded"
-            />
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Title"
+                value={editData.title}
+                onChange={(e) =>
+                  setEditData({ ...editData, title: e.target.value })
+                }
+                className="w-full p-2 bg-[#0f0f0f] border border-[#1f1f1f] rounded"
+              />
 
-            <input
-              type="number"
-              value={editData.amount}
-              onChange={(e) =>
-                setEditData({
-                  ...editData,
-                  amount: e.target.value,
-                })
-              }
-              className="w-full mb-3 p-2 bg-[#0f0f0f] border border-[#1f1f1f] rounded"
-            />
+              <input
+                type="number"
+                placeholder="Amount"
+                value={editData.amount}
+                onChange={(e) =>
+                  setEditData({ ...editData, amount: e.target.value })
+                }
+                className="w-full p-2 bg-[#0f0f0f] border border-[#1f1f1f] rounded"
+              />
 
-            <button
-              onClick={() => handleEditSave(editData._id)}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-black py-2 rounded"
-            >
-              Save Changes
-            </button>
+              <select name="category" onChange={(e) =>
+                  setEditData({ ...editData, category: e.target.value })
+                } className="w-full p-2 bg-[#0f0f0f] border border-[#1f1f1f] rounded">
+              <option value="">Category</option>
+              <option value="Daily">Daily</option>
+              <option value="Food">Food</option>
+              <option value="Personal">Personal</option>
+              <option value="Rent">Rent</option>
+              <option value="Travel">Travel</option>
+              <option value="Vegitable">Vegitable</option>
+              <option value="Grocery">Grocery</option>
+              <option value="Dairy">Dairy</option>
+              <option value="Health">Health</option>
+              <option value="Study">Study</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Shopping">Shopping</option>
+            </select>
+
+              <input
+                type="date"
+                value={editData.date?.split("T")[0]}
+                onChange={(e) =>
+                  setEditData({ ...editData, date: e.target.value })
+                }
+                className="w-full p-2 bg-[#0f0f0f] border border-[#1f1f1f] rounded"
+              />
+
+              <button
+                onClick={() => handleEditSave(editData._id)}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-black py-2 rounded"
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       )}

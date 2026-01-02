@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, Fragment } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import {
   getExpenses,
   deleteExpense,
@@ -9,6 +9,15 @@ import {
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ===== EDIT POPUP STATE =====
+  const [editingTx, setEditingTx] = useState(null);
+  const [formData, setFormData] = useState({
+    title: "",
+    amount: "",
+    category: "",
+    date: "",
+  });
 
   // ================= FETCH =================
   useEffect(() => {
@@ -22,41 +31,47 @@ const Transactions = () => {
         setLoading(false);
       }
     };
-
     fetchExpenses();
   }, []);
 
   // ================= DELETE =================
   const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Delete this transaction?");
-    if (!confirmDelete) return;
-
+    if (!window.confirm("Delete this transaction?")) return;
     try {
       await deleteExpense(id);
       setTransactions((prev) => prev.filter((t) => t._id !== id));
-    } catch (err) {
-      console.error("Delete failed", err);
+    } catch {
       alert("Failed to delete expense");
     }
   };
 
-  // ================= EDIT =================
-  const handleEdit = async (tx) => {
-    const newTitle = prompt("Edit title", tx.title);
-    if (newTitle === null) return;
+  // ================= OPEN EDIT POPUP =================
+  const handleEditOpen = (tx) => {
+    setEditingTx(tx);
+    setFormData({
+      title: tx.title || "",
+      amount: tx.amount,
+      category: tx.category,
+      date: tx.date?.slice(0, 10),
+    });
+  };
 
+  // ================= SAVE EDIT =================
+  const handleEditSave = async () => {
     try {
-      const updated = await editExpense(tx._id, {
-        ...tx,
-        title: newTitle,
+      const updated = await editExpense(editingTx._id, {
+        ...formData,
+        amount: Number(formData.amount),
       });
 
       setTransactions((prev) =>
-        prev.map((t) => (t._id === tx._id ? updated.expense : t))
+        prev.map((t) =>
+          t._id === editingTx._id ? updated.expense : t
+        )
       );
-    } catch (err) {
-      console.error("Edit failed", err);
-      alert("Failed to edit expense");
+      setEditingTx(null);
+    } catch {
+      alert("Failed to update expense");
     }
   };
 
@@ -67,13 +82,12 @@ const Transactions = () => {
     );
 
     return sorted.reduce((acc, tx) => {
-      const dateObj = new Date(tx.date);
-      const year = dateObj.getFullYear();
-      const dateKey = dateObj.toDateString();
+      const d = new Date(tx.date);
+      const year = d.getFullYear();
+      const dateKey = d.toDateString();
 
-      if (!acc[year]) acc[year] = {};
-      if (!acc[year][dateKey]) acc[year][dateKey] = [];
-
+      acc[year] ??= {};
+      acc[year][dateKey] ??= [];
       acc[year][dateKey].push(tx);
       return acc;
     }, {});
@@ -100,83 +114,139 @@ const Transactions = () => {
           </thead>
 
           <tbody>
-            {Object.keys(groupedTransactions).length === 0 ? (
-              <tr>
-                <td colSpan="5" className="py-6 text-center text-gray-500">
-                  No transactions found
-                </td>
-              </tr>
-            ) : (
-              // ===== Sort years descending (current year first) =====
-              Object.entries(groupedTransactions)
-                .sort(([yearA], [yearB]) => yearB - yearA)
-                .map(([year, dates]) => (
-                  <Fragment key={year}>
-                    {/* ===== YEAR HEADER ===== */}
-                    <tr className="bg-[#0f0f0f]">
-                      <td
-                        colSpan="5"
-                        className="px-4 py-3 text-sm font-bold text-orange-400"
-                      >
-                        {year}
-                      </td>
-                    </tr>
+            {Object.entries(groupedTransactions)
+              .sort(([a], [b]) => b - a)
+              .map(([year, dates]) => (
+                <Fragment key={year}>
+                  <tr className="bg-[#0f0f0f]">
+                    <td colSpan="5" className="px-4 py-3 font-bold text-orange-400">
+                      {year}
+                    </td>
+                  </tr>
 
-                    {/* ===== Sort dates descending within the year ===== */}
-                    {Object.entries(dates)
-                      .sort(([dateA], [dateB]) => new Date(dateB) - new Date(dateA))
-                      .map(([date, items]) => (
-                        <Fragment key={date}>
-                          {/* ===== DATE HEADER ===== */}
-                          <tr className="bg-[#141414]">
-                            <td
-                              colSpan="5"
-                              className="px-6 py-2 text-xs font-semibold text-gray-400"
-                            >
-                              {date}
+                  {Object.entries(dates)
+                    .sort(([a], [b]) => new Date(b) - new Date(a))
+                    .map(([date, items]) => (
+                      <Fragment key={date}>
+                        <tr className="bg-[#141414]">
+                          <td colSpan="5" className="px-6 py-2 text-xs text-gray-400">
+                            {date}
+                          </td>
+                        </tr>
+
+                        {items.map((t) => (
+                          <tr
+                            key={t._id}
+                            className="border-t border-[#2a2a2a] hover:bg-[#222]"
+                          >
+                            <td className="px-4 py-3">
+                              {new Date(t.date).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3">{t.category}</td>
+                            <td className="px-4 py-3 text-orange-400">
+                              ₹{t.amount}
+                            </td>
+                            <td className="px-4 py-3 text-gray-400">
+                              {t.title || "-"}
+                            </td>
+                            <td className="px-4 py-3 flex justify-end gap-3">
+                              <button
+                                onClick={() => handleEditOpen(t)}
+                                className="text-blue-400"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(t._id)}
+                                className="text-red-400"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </td>
                           </tr>
-
-                          {/* ===== TRANSACTIONS ===== */}
-                          {items.map((t) => (
-                            <tr
-                              key={t._id}
-                              className="border-t border-[#2a2a2a] hover:bg-[#222]"
-                            >
-                              <td className="px-4 py-3">
-                                {new Date(t.date).toLocaleDateString()}
-                              </td>
-                              <td className="px-4 py-3">{t.category}</td>
-                              <td className="px-4 py-3 text-orange-400 font-medium">
-                                ₹{t.amount}
-                              </td>
-                              <td className="px-4 py-3 text-gray-400">
-                                {t.title || "-"}
-                              </td>
-                              <td className="px-4 py-3 flex justify-end gap-3">
-                                <button
-                                  onClick={() => handleEdit(t)}
-                                  className="text-blue-400 hover:text-blue-500"
-                                >
-                                  <Pencil size={16} />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(t._id)}
-                                  className="text-red-400 hover:text-red-500"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </Fragment>
-                      ))}
-                  </Fragment>
-                ))
-            )}
+                        ))}
+                      </Fragment>
+                    ))}
+                </Fragment>
+              ))}
           </tbody>
         </table>
       </div>
+
+      {/* ================= EDIT POPUP ================= */}
+      {editingTx && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold">Edit Transaction</h2>
+              <button onClick={() => setEditingTx(null)}>
+                <X />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                className="w-full bg-[#111] p-2 rounded"
+                placeholder="Title"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+              />
+              <input
+                type="number"
+                className="w-full bg-[#111] p-2 rounded"
+                placeholder="Amount"
+                value={formData.amount}
+                onChange={(e) =>
+                  setFormData({ ...formData, amount: e.target.value })
+                }
+              />
+              {/* <input
+                className="w-full bg-[#111] p-2 rounded"
+                placeholder="Category"
+                value={formData.category}
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                }
+              /> */}
+              <select name="category"
+              value={formData.category} onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                } className="w-full bg-[#111] p-2 rounded">
+              <option value="">Category</option>
+              <option value="Daily">Daily</option>
+              <option value="Food">Food</option>
+              <option value="Personal">Personal</option>
+              <option value="Rent">Rent</option>
+              <option value="Travel">Travel</option>
+              <option value="Vegitable">Vegitable</option>
+              <option value="Dairy">Dairy</option>
+              <option value="Grocery">Grocery</option>
+              <option value="Health">Health</option>
+              <option value="Study">Study</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Shopping">Shopping</option>
+            </select>
+              <input
+                type="date"
+                className="w-full bg-[#111] p-2 rounded"
+                value={formData.date}
+                onChange={(e) =>
+                  setFormData({ ...formData, date: e.target.value })
+                }
+              />
+
+              <button
+                onClick={handleEditSave}
+                className="w-full bg-orange-500 hover:bg-orange-600 p-2 rounded font-semibold"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

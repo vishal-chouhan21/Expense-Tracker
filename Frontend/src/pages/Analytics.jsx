@@ -14,17 +14,7 @@ import { getExpenses } from "../../services/ExpenseService";
 import { getIncome } from "../../services/IncomeService";
 import CategoryAnalytics from "../components/CategoryAnalyzer";
 
-/* ================= COLORS ================= */
-const COLORS = [
-  "#f97316",
-  "#22c55e",
-  "#3b82f6",
-  "#a855f7",
-  "#e11d48",
-  "#14b8a6",
-];
-
-/* ======== SAFE EXTRACTORS ================= */
+/* ===== SAFE EXTRACTORS ===== */
 const extractExpenses = (res) =>
   res?.expenses || res?.data?.expenses || res?.data || [];
 
@@ -35,94 +25,101 @@ const Analytics = () => {
   const [expenses, setExpenses] = useState([]);
   const [incomes, setIncomes] = useState([]);
 
-  /* ================= FETCH ================= */
+  /* ===== FETCH ===== */
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const expRes = await getExpenses();
-        const incRes = await getIncome();
+      const expRes = await getExpenses();
+      const incRes = await getIncome();
 
-        setExpenses(extractExpenses(expRes));
-        setIncomes(extractIncome(incRes));
-      } catch (err) {
-        console.error("Analytics fetch error", err);
-      }
+      setExpenses(extractExpenses(expRes));
+      setIncomes(extractIncome(incRes));
     };
 
     fetchData();
   }, []);
 
-  /* ============ TOTALS ================= */
-  const totalExpense = useMemo(
-    () => expenses.reduce((s, e) => s + Number(e.amount || 0), 0),
-    [expenses]
-  );
+  /* ===== CURRENT MONTH FILTER ===== */
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
-  const totalIncome = useMemo(
-    () => incomes.reduce((s, i) => s + Number(i.amount || 0), 0),
-    [incomes]
-  );
-
-  /*========== CATEGORY PIE ================= */
-  const categoryData = useMemo(() => {
-    const map = {};
-
-    expenses.forEach((e) => {
-      if (!e.amount || !e.category) return;
-      map[e.category] = (map[e.category] || 0) + Number(e.amount);
+  const currentMonthIncome = useMemo(() => {
+    return incomes.filter((i) => {
+      if (!i.date) return false;
+      const d = new Date(i.date);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
+  }, [incomes]);
 
-    return Object.entries(map)
-      .map(([name, value]) => ({ name, value }))
-      .filter((c) => c.value > 0);
-  }, [expenses]);
-
-  /* ========== TOP CATEGORY ================= */
-  const topCategory = useMemo(() => {
-    if (!categoryData.length) return null;
-    return categoryData.reduce((a, b) => (b.value > a.value ? b : a));
-  }, [categoryData]);
-
-  /*=========== MONTHLY BAR ================= */
-  const monthlyExpense = useMemo(() => {
-    // Initialize all 12 months with 0 amount
-    const months = Array.from({ length: 12 }, (_, i) => ({
-      month: new Date(0, i).toLocaleString("default", { month: "short" }),
-      amount: 0,
-    }));
-
-    expenses.forEach((e) => {
-      if (!e.date || !e.amount) return;
+  const currentMonthExpense = useMemo(() => {
+    return expenses.filter((e) => {
+      if (!e.date) return false;
       const d = new Date(e.date);
-      const monthIndex = d.getMonth();
-      months[monthIndex].amount += Number(e.amount);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
-
-    return months;
   }, [expenses]);
 
-  /* =========== LINE GRAPH ================= */
+  /* ===== TOTALS (MONTHLY RESET) ===== */
+  const totalIncome = useMemo(
+    () => currentMonthIncome.reduce((s, i) => s + Number(i.amount || 0), 0),
+    [currentMonthIncome]
+  );
+
+  const totalExpense = useMemo(
+    () => currentMonthExpense.reduce((s, e) => s + Number(e.amount || 0), 0),
+    [currentMonthExpense]
+  );
+
+  /* ===== MONTHLY LINE GRAPH ===== */
   const incomeExpenseLine = useMemo(() => {
     const map = {};
 
     incomes.forEach((i) => {
       if (!i.date || !i.amount) return;
-      const d = i.date.split("T")[0]; // YYYY-MM-DD
-      map[d] = map[d] || { date: d, income: 0, expense: 0 };
-      map[d].income += Number(i.amount);
+      const d = new Date(i.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      map[key] = map[key] || {
+        month: d.toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        }),
+        income: 0,
+        expense: 0,
+      };
+      map[key].income += Number(i.amount);
     });
 
     expenses.forEach((e) => {
       if (!e.date || !e.amount) return;
-      const d = e.date.split("T")[0];
-      map[d] = map[d] || { date: d, income: 0, expense: 0 };
-      map[d].expense += Number(e.amount);
+      const d = new Date(e.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      map[key] = map[key] || {
+        month: d.toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        }),
+        income: 0,
+        expense: 0,
+      };
+      map[key].expense += Number(e.amount);
     });
 
-    return Object.values(map).sort(
-      (a, b) => new Date(a.date) - new Date(b.date)
-    );
+    return Object.values(map);
   }, [incomes, expenses]);
+
+  /* ===== MONTHLY EXPENSE BAR ===== */
+  const monthlyExpense = useMemo(() => {
+    const months = Array.from({ length: 12 }, (_, i) => ({
+      month: new Date(0, i).toLocaleString("default", { month: "short" }),
+      amount: 0,
+    }));
+
+    currentMonthExpense.forEach((e) => {
+      const d = new Date(e.date);
+      months[d.getMonth()].amount += Number(e.amount);
+    });
+
+    return months;
+  }, [currentMonthExpense]);
 
   return (
     <div className="bg-[#0f0f0f] min-h-screen text-white p-6">
@@ -130,35 +127,21 @@ const Analytics = () => {
 
       {/* SUMMARY */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Summary title="This Month Income" value={totalIncome} color="text-green-400" />
+        <Summary title="This Month Expense" value={totalExpense} color="text-red-400" />
         <Summary
-          title="Total Income"
-          value={totalIncome}
-          color="text-green-400"
-        />
-        <Summary
-          title="Total Expense"
-          value={totalExpense}
-          color="text-red-400"
-        />
-        <Summary
-          title="Top Spending"
-          value={
-            topCategory
-              ? `${topCategory.name} (₹${topCategory.value})`
-              : "No data"
-          }
+          title="This Month Savings"
+          value={totalIncome - totalExpense}
           color="text-orange-400"
         />
       </div>
 
-      {/* LINE */}
-      <ChartBox title="Income vs Expense">
+      {/* LINE CHART */}
+      <ChartBox title="Monthly Income vs Expense">
         <LineChart data={incomeExpenseLine}>
-          <XAxis dataKey="date" stroke="white" />
+          <XAxis dataKey="month" stroke="white" />
           <YAxis stroke="white" />
-          <Tooltip
-            contentStyle={{ backgroundColor: "#1f1f1f", border: "none" }}
-          />
+          <Tooltip contentStyle={{ backgroundColor: "#1f1f1f", border: "none" }} />
           <Legend />
           <Line dataKey="income" stroke="#22c55e" strokeWidth={2} />
           <Line dataKey="expense" stroke="#e11d48" strokeWidth={2} />
@@ -167,28 +150,14 @@ const Analytics = () => {
 
       {/* PIE + BAR */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        {/* Category Pie */}
-        <div>
-          <CategoryAnalytics />
-        </div>
+        <CategoryAnalytics />
 
-        {/* Monthly Expense Bar */}
-        <ChartBox title="Monthly Expenses">
+        <ChartBox title="This Month Expenses">
           <BarChart data={monthlyExpense}>
             <XAxis dataKey="month" stroke="white" />
-            <YAxis
-              domain={[0, (dataMax) => Math.ceil(dataMax * 1.2)]}
-              allowDataOverflow={false}
-              stroke="white"
-            />
-            <Tooltip
-              contentStyle={{ backgroundColor: "#1f1f1f", border: "none" }}
-            />
-            <Bar
-              dataKey="amount"
-              fill="yellow"
-              label={{ position: "top", fill: "white" }}
-            />
+            <YAxis stroke="white" />
+            <Tooltip contentStyle={{ backgroundColor: "#1f1f1f", border: "none" }} />
+            <Bar dataKey="amount" fill="#f97316" />
           </BarChart>
         </ChartBox>
       </div>
@@ -196,12 +165,12 @@ const Analytics = () => {
   );
 };
 
-/* ======== SMALL COMPONENTS ============== */
+/* ===== COMPONENTS ===== */
 const Summary = ({ title, value, color }) => (
   <div className="bg-[#141414] p-5 rounded-xl border border-[#1f1f1f]">
     <p className="text-gray-400 text-sm">{title}</p>
     <h2 className={`text-2xl font-bold mt-2 ${color}`}>
-      {typeof value === "number" ? `₹ ${value.toLocaleString()}` : value}
+      ₹ {Number(value).toLocaleString()}
     </h2>
   </div>
 );

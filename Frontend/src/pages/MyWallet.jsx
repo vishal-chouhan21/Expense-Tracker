@@ -16,13 +16,12 @@ const MyWallet = () => {
     amount: "",
   });
 
-  /* ============ FETCH DATA ================= */
+  /* ================= FETCH DATA ================= */
   const fetchWalletData = async () => {
     try {
       const incomeRes = await getIncome();
       const expenseRes = await getExpenses();
 
-      // ✅ FIXED KEYS
       setIncomes(incomeRes?.income || incomeRes?.data || []);
       setExpenses(expenseRes?.expenses || expenseRes?.data || []);
     } catch (err) {
@@ -34,37 +33,97 @@ const MyWallet = () => {
     fetchWalletData();
   }, []);
 
-  /* ================= CALCULATIONS ================= */
-  const totalIncome = useMemo(
-    () =>
-      incomes.reduce((sum, i) => sum + Number(i.amount || 0), 0),
-    [incomes]
-  );
+  /* ================= YEARLY TOTAL SAVINGS ================= */
+  const yearlyTotals = useMemo(() => {
+    const data = {};
 
-  const totalExpense = useMemo(
-    () =>
-      expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0),
-    [expenses]
-  );
+    const allData = [
+      ...incomes.map((i) => ({
+        type: "income",
+        amount: Number(i.amount || 0),
+        date: i.date ? new Date(i.date) : new Date(),
+      })),
+      ...expenses.map((e) => ({
+        type: "expense",
+        amount: Number(e.amount || 0),
+        date: e.date ? new Date(e.date) : new Date(),
+      })),
+    ];
 
-  const balance = totalIncome - totalExpense;
+    allData.forEach(({ type, amount, date }) => {
+      const year = date.getFullYear();
+      if (!data[year]) data[year] = { income: 0, expense: 0, net: 0 };
 
-  /* ================= ACTIVITY FEED ================= */
+      if (type === "income") data[year].income += amount;
+      else data[year].expense += amount;
+
+      data[year].net = data[year].income - data[year].expense;
+    });
+
+    return Object.entries(data)
+      .sort(([a], [b]) => b - a) // descending year
+      .map(([year, val]) => ({ year, ...val }));
+  }, [incomes, expenses]);
+
+  /* ================= MONTHLY BALANCES (RESET EACH MONTH) ================= */
+  const monthlyBalances = useMemo(() => {
+    const data = {};
+
+    const allData = [
+      ...incomes.map((i) => ({
+        type: "income",
+        amount: Number(i.amount || 0),
+        date: i.date ? new Date(i.date) : new Date(),
+      })),
+      ...expenses.map((e) => ({
+        type: "expense",
+        amount: Number(e.amount || 0),
+        date: e.date ? new Date(e.date) : new Date(),
+      })),
+    ];
+
+    allData.forEach(({ type, amount, date }) => {
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!data[key]) data[key] = { income: 0, expense: 0, net: 0 };
+
+      if (type === "income") data[key].income += amount;
+      else data[key].expense += amount;
+
+      data[key].net = data[key].income - data[key].expense;
+    });
+
+    return Object.entries(data)
+      .sort(
+        ([a], [b]) =>
+          new Date(b.split("-")[0], b.split("-")[1]) -
+          new Date(a.split("-")[0], a.split("-")[1])
+      )
+      .map(([key, val]) => {
+        const [year, monthIndex] = key.split("-");
+        const month = new Date(year, monthIndex).toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        });
+        return { month, ...val };
+      });
+  }, [incomes, expenses]);
+
+  /* ================= RECENT ACTIVITY ================= */
   const activities = useMemo(() => {
     const incomeActivity = incomes.map((i) => ({
       title: i.source || i.title || "Income",
       amount: Number(i.amount || 0),
-      date: i.date || new Date(),
+      date: i.date ? new Date(i.date) : new Date(),
     }));
 
     const expenseActivity = expenses.map((e) => ({
       title: e.title || "Expense",
       amount: -Number(e.amount || 0),
-      date: e.date || new Date(),
+      date: e.date ? new Date(e.date) : new Date(),
     }));
 
     return [...incomeActivity, ...expenseActivity]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .sort((a, b) => b.date - a.date)
       .slice(0, 5);
   }, [incomes, expenses]);
 
@@ -85,8 +144,7 @@ const MyWallet = () => {
         date: new Date(),
       });
 
-      await fetchWalletData(); // ✅ refresh wallet
-
+      await fetchWalletData(); // refresh wallet
       setIncomeForm({ title: "", amount: "" });
       setShowIncomeModal(false);
     } catch (err) {
@@ -102,47 +160,59 @@ const MyWallet = () => {
         <h1 className="text-2xl font-bold">My Wallet</h1>
       </div>
 
-      {/* BALANCE */}
-      <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-6 mb-6">
-        <p className="text-gray-400 text-sm">Savings</p>
-        <h2
-          className={`text-3xl font-bold mt-2 ${
-            balance >= 0 ? "text-green-400" : "text-red-400"
-          }`}
-        >
-          ₹ {balance.toLocaleString()}
-        </h2>
+      {/* YEARLY TOTALS */}
+      <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-4 mb-6">
+        <h3 className="text-lg font-semibold mb-3">Yearly Total Savings</h3>
+        {yearlyTotals.length === 0 ? (
+          <p className="text-gray-400 text-sm">No data available</p>
+        ) : (
+          <div className="space-y-2">
+            {yearlyTotals.map((y, i) => (
+              <div key={i} className="flex justify-between">
+                <span>{y.year}</span>
+                <span
+                  className={
+                    y.net >= 0
+                      ? "text-green-400 font-medium"
+                      : "text-red-400 font-medium"
+                  }
+                >
+                  ₹ {y.net.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Stat label="Total Income" value={totalIncome} color="text-green-400" />
-        <Stat label="Total Expenses" value={totalExpense} color="text-red-400" />
-      </div>
-
-      {/* ACTIONS */}
-      <div className="flex gap-4 mb-8">
-        <button
-          onClick={() => setShowIncomeModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-black font-medium hover:bg-orange-400"
-        >
-          <PlusCircle size={18} />
-          Add Income
-        </button>
-
-        <button
-          onClick={() => navigate("/add-expense")}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#1f1f1f] hover:bg-[#141414]"
-        >
-          <MinusCircle size={18} className="text-red-400" />
-          Add Expense
-        </button>
+      {/* MONTHLY BALANCES */}
+      <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-4 mb-6">
+        <h3 className="text-lg font-semibold mb-3">Monthly Balance</h3>
+        {monthlyBalances.length === 0 ? (
+          <p className="text-gray-400 text-sm">No data available</p>
+        ) : (
+          <div className="space-y-2">
+            {monthlyBalances.map((m, i) => (
+              <div key={i} className="flex justify-between">
+                <span>{m.month}</span>
+                <span
+                  className={
+                    m.net >= 0
+                      ? "text-green-400 font-medium"
+                      : "text-red-400 font-medium"
+                  }
+                >
+                  ₹ {m.net.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* RECENT ACTIVITY */}
       <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-4">
         <h3 className="text-lg font-semibold mb-3">Recent Activity</h3>
-
         <div className="text-sm text-gray-400 space-y-2">
           {activities.length === 0 ? (
             <p>No activity yet</p>
@@ -151,9 +221,7 @@ const MyWallet = () => {
               <div key={i} className="flex justify-between">
                 <span>{item.title}</span>
                 <span
-                  className={
-                    item.amount > 0 ? "text-green-400" : "text-red-400"
-                  }
+                  className={item.amount > 0 ? "text-green-400" : "text-red-400"}
                 >
                   {item.amount > 0 ? "+" : "-"} ₹
                   {Math.abs(item.amount).toLocaleString()}
@@ -195,15 +263,6 @@ const MyWallet = () => {
 };
 
 /* ================= SMALL COMPONENTS ================= */
-const Stat = ({ label, value, color }) => (
-  <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-4">
-    <p className="text-gray-400 text-sm">{label}</p>
-    <p className={`text-xl font-semibold mt-1 ${color}`}>
-      ₹ {value.toLocaleString()}
-    </p>
-  </div>
-);
-
 const Modal = ({ children, onClose }) => (
   <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
     <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl w-full max-w-md p-5">
