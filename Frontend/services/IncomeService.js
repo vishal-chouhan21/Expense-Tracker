@@ -9,3 +9,8 @@ export const getIncome = async () => {
   const res = await Api.get("/api/income/get-income");
   return res.data;
 };
+
+export const editIncome = async (id, data) => {
+  const res = await Api.put(`/api/income/edit-income/${id}`, data);
+  return res.data;
+};

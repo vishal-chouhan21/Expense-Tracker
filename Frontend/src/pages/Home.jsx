@@ -1,70 +1,121 @@
 import React, { useState, useEffect } from "react";
-import { PlusCircle } from "lucide-react";
+import { Edit2Icon, PlusCircle, X } from "lucide-react";
 import StatCard from "../components/StatCard";
 import CategoryAnalytics from "../components/CategoryAnalyzer";
 import Calendar from "../components/Calendar";
 import { addExpense, getExpenses } from "../../services/ExpenseService";
-import { getIncome } from "../../services/IncomeService";
+import { getIncome, addIncome, editIncome } from "../../services/IncomeService";
 import ExpenseList from "./ExpenseList";
-import { useNavigate } from "react-router-dom";
 
 const Home = () => {
-  const navigate = useNavigate();
-
   /* ================= STATES ================= */
   const [expenses, setExpenses] = useState([]);
   const [income, setIncome] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [showIncomePopup, setShowIncomePopup] = useState(false);
+  const [editingIncome, setEditingIncome] = useState(null);
 
   const today = new Date();
   const token = localStorage.getItem("token");
 
   /* ================= FETCH DATA ================= */
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const expenseRes = await getExpenses();
-        const incomeRes = await getIncome();
+  const fetchDashboardData = async () => {
+    try {
+      const expenseRes = await getExpenses();
+      const incomeRes = await getIncome();
 
-        setExpenses(expenseRes?.expenses || []);
-        setIncome(incomeRes?.income || []);
-      } catch (err) {
-        console.error("Dashboard data error", err);
-      }
-    };
-    fetchData();
+      setExpenses(expenseRes?.expenses || []);
+      setIncome(incomeRes?.income || incomeRes?.data || []);
+    } catch (err) {
+      console.error("Dashboard fetch error", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
   }, []);
 
-  /* ================= HELPER ================= */
-  const getMonthlyIncome = (monthOffset = 0) => {
-    const refDate = new Date(
-      today.getFullYear(),
-      today.getMonth() + monthOffset,
-      1
-    );
+  /* ================= INCOME FORM ================= */
+  const [incomeForm, setIncomeForm] = useState({
+    amount: "",
+    source: "",
+    date: "",
+  });
 
-    return income
+  const openAddIncome = () => {
+    setEditingIncome(null);
+    setIncomeForm({
+      amount: "",
+      source: "",
+      date: today.toISOString().slice(0, 10),
+    });
+    setShowIncomePopup(true);
+  };
+
+  const openEditIncome = () => {
+    if (!income.length) return;
+
+    const latest = [...income].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    )[0];
+
+    setEditingIncome(latest);
+    setIncomeForm({
+      amount: latest.amount,
+      source: latest.source || "",
+      date: latest.date.slice(0, 10),
+    });
+
+    setShowIncomePopup(true);
+  };
+
+  const handleIncomeSave = async () => {
+    if (!incomeForm.amount || !incomeForm.date) {
+      alert("Fill required fields");
+      return;
+    }
+
+    try {
+      if (editingIncome) {
+        await editIncome(editingIncome._id, {
+          amount: Number(incomeForm.amount),
+          source: incomeForm.source,
+          date: incomeForm.date,
+        });
+      } else {
+        await addIncome({
+          amount: Number(incomeForm.amount),
+          source: incomeForm.source,
+          date: incomeForm.date,
+        });
+      }
+
+      await fetchDashboardData(); // 🔥 REFRESH
+      setShowIncomePopup(false);
+      setEditingIncome(null);
+    } catch (err) {
+      alert("Income save failed");
+    }
+  };
+
+  /* ================= HELPERS ================= */
+  const getMonthlyIncome = () =>
+    income
       .filter((i) => {
         const d = new Date(i.date);
         return (
-          d.getMonth() === refDate.getMonth() &&
-          d.getFullYear() === refDate.getFullYear()
+          d.getMonth() === today.getMonth() &&
+          d.getFullYear() === today.getFullYear()
         );
       })
       .reduce((sum, i) => sum + Number(i.amount || 0), 0);
-  };
 
-  /* ================= CALCULATIONS ================= */
-
-  // 👉 Carry-forward income logic
-  let monthlyIncome = getMonthlyIncome(0); // current month
-  if (monthlyIncome === 0) {
-    monthlyIncome = getMonthlyIncome(-1); // last month
-  }
+  const monthlyIncome = getMonthlyIncome(); // ✅ NO carry forward
 
   const monthlyExpense = expenses
+    .filter((e) => e?.date)
     .filter((e) => {
       const d = new Date(e.date);
       return (
@@ -75,6 +126,7 @@ const Home = () => {
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const todayExpense = expenses
+    .filter((e) => e?.date)
     .filter(
       (e) => new Date(e.date).toDateString() === today.toDateString()
     )
@@ -82,7 +134,7 @@ const Home = () => {
 
   const totalSaving = monthlyIncome - monthlyExpense;
 
-  /* ================= FORM ================= */
+  /* ================= EXPENSE FORM ================= */
   const [formData, setFormData] = useState({
     title: "",
     amount: "",
@@ -91,10 +143,8 @@ const Home = () => {
     note: "",
   });
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -131,19 +181,20 @@ const Home = () => {
     e.preventDefault();
 
     if (!formData.title || !formData.amount || !formData.category || !formData.date) {
-      alert("Please fill all required fields");
+      alert("Fill all required fields");
       return;
     }
 
     try {
       setLoading(true);
-      await addExpense({
+      const res = await addExpense({
         title: formData.title,
         amount: Number(formData.amount),
         category: formData.category,
         date: formData.date,
         notes: formData.note,
       });
+      setExpenses((prev) => [...prev, res.expense]);
       setShowForm(false);
     } finally {
       setLoading(false);
@@ -151,71 +202,46 @@ const Home = () => {
   };
 
   return (
-    <div className="bg-[#0f0f0f] text-white min-h-screen p-6">
-
+    <div className="bg-[#0f0f0f] min-h-screen text-white p-6">
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between mb-6">
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-orange-500 px-4 py-2 rounded-lg text-sm font-medium"
+          className="bg-orange-500 px-4 py-2 rounded"
         >
           {showForm ? "Close" : "+ Add Expense"}
         </button>
       </div>
 
-      {/* ADD EXPENSE FORM */}
-      {showForm && (
-        <div className="max-w-md p-6 border border-[#1f1f1f] rounded-xl mb-6">
-          <h2 className="text-xl font-semibold mb-4">Add Expense</h2>
-
-          <input type="file" onChange={handleFileUpload} />
-          {scanning && <p className="text-orange-400 text-sm">Scanning receipt...</p>}
-
-          <form onSubmit={handleSubmit} className="space-y-3 mt-4">
-            <input name="title" placeholder="Title" onChange={handleChange} className="w-full p-2 bg-[#141414]" />
-            <input name="amount" type="number" placeholder="Amount" onChange={handleChange} className="w-full p-2 bg-[#141414]" />
-            <select name="category" onChange={handleChange} className="w-full p-2 bg-[#141414]">
-              <option value="">Category</option>
-              <option value="Daily">Daily</option>
-              <option value="Food">Food</option>
-              <option value="Personal">Personal</option>
-              <option value="Rent">Rent</option>
-              <option value="Travel">Travel</option>
-              <option value="Vegitable">Vegitable</option>
-              <option value="Grocery">Grocery</option>
-              <option value="Dairy">Dairy</option>
-              <option value="Health">Health</option>
-              <option value="Study">Study</option>
-              <option value="Entertainment">Entertainment</option>
-              <option value="Shopping">Shopping</option>
-            </select>
-            <input name="date" type="date" onChange={handleChange} className="w-full p-2 bg-[#141414]" />
-            <textarea name="note" placeholder="Note" onChange={handleChange} className="w-full p-2 bg-[#141414]" />
-            <button disabled={loading} className="bg-orange-500 w-full py-2 rounded">
-              {loading ? "Adding..." : "Add Expense"}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* STATS */}
+      {/* ADD INCOME */}
       <button
-        onClick={() => navigate("/add-income")}
-        className="flex items-center gap-1 bg-orange-500 text-black px-3 py-1 rounded-lg"
+        onClick={openAddIncome}
+        className="bg-orange-500 text-black px-3 py-1 rounded flex gap-1 items-center"
       >
         <PlusCircle size={18} /> Add Income
       </button>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <StatCard title="Monthly Income" amount={`₹ ${monthlyIncome.toLocaleString()}`} />
-        <StatCard title="Savings" amount={`₹ ${totalSaving.toLocaleString()}`} />
-        <StatCard title="Monthly Expense" amount={`₹ ${monthlyExpense.toLocaleString()}`} />
-        <StatCard title="Today Expense" amount={`₹ ${todayExpense.toLocaleString()}`} />
+      {/* edit INCOME */}
+      <button
+        onClick={openEditIncome}
+        className="bg-green-500 text-white p-1 rounded flex gap-1 items-center mt-2"
+      >
+        <Edit2Icon size={18} />
+      </button>
+
+      {/* STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+        <div>
+          <StatCard title="Monthly Income" amount={`₹ ${monthlyIncome}`} />
+        </div>
+        <StatCard title="Savings" amount={`₹ ${totalSaving}`} />
+        <StatCard title="Monthly Expense" amount={`₹ ${monthlyExpense}`} />
+        <StatCard title="Today Expense" amount={`₹ ${todayExpense}`} />
       </div>
 
       {/* ANALYTICS */}
-      <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="mt-8 grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <CategoryAnalytics />
         </div>
@@ -223,6 +249,51 @@ const Home = () => {
       </div>
 
       <ExpenseList />
+
+      {/* INCOME POPUP */}
+      {showIncomePopup && (
+        <div className="fixed inset-0 bg-black/70 flex justify-center items-center">
+          <div className="bg-[#1a1a1a] p-6 rounded-xl w-full max-w-md">
+            <div className="flex justify-between mb-4">
+              <h2>{editingIncome ? "Edit Income" : "Add Income"}</h2>
+              <X onClick={() => setShowIncomePopup(false)} />
+            </div>
+
+            <input
+              type="number"
+              className="w-full p-2 mb-3 bg-[#111]"
+              placeholder="Amount"
+              value={incomeForm.amount}
+              onChange={(e) =>
+                setIncomeForm({ ...incomeForm, amount: e.target.value })
+              }
+            />
+            <input
+              className="w-full p-2 mb-3 bg-[#111]"
+              placeholder="Source"
+              value={incomeForm.source}
+              onChange={(e) =>
+                setIncomeForm({ ...incomeForm, source: e.target.value })
+              }
+            />
+            <input
+              type="date"
+              className="w-full p-2 mb-4 bg-[#111]"
+              value={incomeForm.date}
+              onChange={(e) =>
+                setIncomeForm({ ...incomeForm, date: e.target.value })
+              }
+            />
+
+            <button
+              onClick={handleIncomeSave}
+              className="w-full bg-orange-500 py-2 rounded"
+            >
+              Save Income
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

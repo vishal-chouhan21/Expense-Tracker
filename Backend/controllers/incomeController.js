@@ -45,3 +45,48 @@ export const getIncome = async (req, res) => {
     });
   }
 };
+
+export const editIncome = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const { id } = req.params;
+    const { title, amount, source, date, notes } = req.body;
+
+    const income = await Income.findOneAndUpdate(
+      { _id: id, user: req.user.id },
+      {
+        title,
+        amount,
+        source,
+        date,
+        notes,
+      },
+      { new: true }
+    );
+
+    if (!income) {
+      return res.status(404).json({
+        success: false,
+        message: "Income not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Income updated successfully",
+      income,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update income",
+    });
+  }
+};
+
