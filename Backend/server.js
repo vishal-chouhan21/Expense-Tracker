@@ -19,14 +19,14 @@ await connectDB();
 
 // Middleware
 app.use(express.json());
-app.use(cors(
-  {
-    origin: "https://expense-tracker-w6e8-d8rm0mpya-vishal-chouhan21s-projects.vercel.app",
+app.use(
+  cors({
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true 
-  }
-));
+  })
+);
+
 
 // Routes
 app.use("/api/user", userRouter);
