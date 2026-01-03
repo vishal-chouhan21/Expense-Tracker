@@ -21,7 +21,7 @@ await connectDB();
 app.use(express.json());
 app.use(cors(
   {
-    origin: "http://localhost:5173",
+    origin: "https://expense-tracker-w6e8-d8rm0mpya-vishal-chouhan21s-projects.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true 
