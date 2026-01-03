@@ -127,9 +127,7 @@ const Home = () => {
 
   const todayExpense = expenses
     .filter((e) => e?.date)
-    .filter(
-      (e) => new Date(e.date).toDateString() === today.toDateString()
-    )
+    .filter((e) => new Date(e.date).toDateString() === today.toDateString())
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const totalSaving = monthlyIncome - monthlyExpense;
@@ -180,7 +178,12 @@ const Home = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.title || !formData.amount || !formData.category || !formData.date) {
+    if (
+      !formData.title ||
+      !formData.amount ||
+      !formData.category ||
+      !formData.date
+    ) {
       alert("Fill all required fields");
       return;
     }
@@ -213,6 +216,73 @@ const Home = () => {
           {showForm ? "Close" : "+ Add Expense"}
         </button>
       </div>
+
+      {/* ADD EXPENSE FORM */}
+      {showForm && (
+        <div className="max-w-md p-6 border border-[#1f1f1f] rounded-xl mb-6">
+          {" "}
+          <h2 className="text-xl font-semibold mb-4">Add Expense</h2>{" "}
+          <input type="file" onChange={handleFileUpload} />{" "}
+          {scanning && (
+            <p className="text-orange-400 text-sm">Scanning receipt...</p>
+          )}{" "}
+          <form onSubmit={handleSubmit} className="space-y-3 mt-4">
+            {" "}
+            <input
+              name="title"
+              placeholder="Title"
+              onChange={handleChange}
+              className="w-full p-2 bg-[#141414]"
+            />{" "}
+            <input
+              name="amount"
+              type="number"
+              placeholder="Amount"
+              onChange={handleChange}
+              className="w-full p-2 bg-[#141414]"
+            />{" "}
+            <select
+              name="category"
+              onChange={handleChange}
+              className="w-full p-2 bg-[#141414]"
+            >
+              {" "}
+              <option value="">Category</option>{" "}
+              <option value="Daily">Daily</option>{" "}
+              <option value="Food">Food</option>{" "}
+              <option value="Personal">Personal</option>{" "}
+              <option value="Rent">Rent</option>{" "}
+              <option value="Travel">Travel</option>{" "}
+              <option value="Vegitable">Vegitable</option>{" "}
+              <option value="Grocery">Grocery</option>{" "}
+              <option value="Dairy">Dairy</option>{" "}
+              <option value="Health">Health</option>{" "}
+              <option value="Study">Study</option>{" "}
+              <option value="Entertainment">Entertainment</option>{" "}
+              <option value="Shopping">Shopping</option>{" "}
+            </select>{" "}
+            <input
+              name="date"
+              type="date"
+              onChange={handleChange}
+              className="w-full p-2 bg-[#141414]"
+            />{" "}
+            <textarea
+              name="note"
+              placeholder="Note"
+              onChange={handleChange}
+              className="w-full p-2 bg-[#141414]"
+            />{" "}
+            <button
+              disabled={loading}
+              className="bg-orange-500 w-full py-2 rounded"
+            >
+              {" "}
+              {loading ? "Adding..." : "Add Expense"}{" "}
+            </button>{" "}
+          </form>{" "}
+        </div>
+      )}
 
       {/* ADD INCOME */}
       <button
