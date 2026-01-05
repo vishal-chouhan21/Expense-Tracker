@@ -129,7 +129,7 @@ const CategoryAnalytics = () => {
       </div>
 
       {/* Pie Chart */}
-      <div className="h-96 bg-[#1a1a1a] rounded-xl p-4">
+      <div className="h-72 sm:h-96 bg-[#1a1a1a] rounded-xl p-3 sm:p-4">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie

@@ -36,33 +36,33 @@ const Navbar = () => {
  {/* Mobile Menu */}
           <button
             onClick={toggleSidebar}
-            className="md:hidden text-gray-300 hover:text-white"
+            className="md:hidden text-gray-300 hover:text-white text-left"
           >
             <Menu size={22} />
           </button>
         {/* Logo */}
-        <div className="flex items-center gap-2 text-white font-bold text-lg">
+        <div className="sm:flex items-center gap-3 text-white font-bold text-lg">
           <Zap className="text-orange-500" size={20} />
-          ExpensePro
+          <span className="hidden sm:block">ExpensePro</span>
         </div>
 
         {/* Navigation */}
-        <nav className="flex items-center gap-2 bg-[#0f0f0f] rounded-3xl">
+        <nav className="sm:gap-0 flex items-center gap-2 bg-[#0f0f0f] rounded-3xl">
           <NavLink to="/" className={linkClass}>
             <Home size={18} />
-            Home
+            <span className="hidden sm:block">Home</span>
           </NavLink>
           <NavLink to="/monthly" className={linkClass}>
             <Calendar size={18} />
-            Monthly
+            <span className="hidden sm:block">Monthly</span>
           </NavLink>
           <NavLink to="/daily" className={linkClass}>
             <Sun size={18} />
-            Daily
+           <span className="hidden sm:block">Daily</span>
           </NavLink>
           <NavLink to="/my-wallet" className={linkClass}>
             <Wallet size={18} />
-            Savings
+            <span className="hidden sm:block">Savings</span>
           </NavLink>
         </nav>
 
