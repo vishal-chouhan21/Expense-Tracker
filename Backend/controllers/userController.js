@@ -58,12 +58,12 @@ export const loginUser = async (req, res) => {
 
     const user = await User.findOne({ phone });
     if(!user) {
-      return res.status(401).json({ success: false, message: "Invalid phone or password" });
+      return res.status(401).json({ success: false, message: "Invalid phone" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if(!isPasswordValid) {
-      return res.status(401).json({ success: false, message: "Invalid phone or password" });
+      return res.status(401).json({ success: false, message: "Invalid password" });
     }
 
     if(!process.env.JWT_SECRET_KEY) {

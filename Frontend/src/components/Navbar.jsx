@@ -67,7 +67,7 @@ const Navbar = () => {
         </nav>
 
        <div>
-  <button className="h-10 w-10 rounded-full bg-orange-500 text-black font-semibold
+  <button className="h-9 w-9 rounded-full bg-orange-500 text-black font-semibold
   flex items-center justify-center hover:bg-orange-600 transition">
     {loading
   ? "…"
